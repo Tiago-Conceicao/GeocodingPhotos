@@ -1,4 +1,3 @@
-import keras
 import numpy as np
 from keras import backend as K
 import tensorflow as tf
@@ -7,8 +6,8 @@ import math
 import healpy
 from scipy import stats
 
-#_BOUNDING_BOX = [37.639830, 37.929824, -123.173825, -122.281780] #sf
-_BOUNDING_BOX = [40.477399,  40.917577, -74.259090, -73.700272] #ny
+_BOUNDING_BOX = [37.639830, 37.929824, -123.173825, -122.281780] #sf
+#_BOUNDING_BOX = [40.477399,  40.917577, -74.259090, -73.700272] #ny
 
 def geodistance_theano( p1 , p2 ):
   a0 = convertvalues(p1[:,0], _BOUNDING_BOX[0], _BOUNDING_BOX[1])
@@ -29,8 +28,24 @@ def geodistance_theano( p1 , p2 ):
   cos_delta_lng = K.cos(delta_lng)
   sin_delta_lng = K.sin(delta_lng)
   d = tf.atan2(K.sqrt((cos_lat2 * sin_delta_lng) ** 2 + (cos_lat1 * sin_lat2 - sin_lat1 * cos_lat2 * cos_delta_lng) ** 2), sin_lat1 * sin_lat2 + cos_lat1 * cos_lat2 * cos_delta_lng )
-  #return K.mean( 6371.0087714 * d , axis = -1 ) * 1000
-  return K.mean(d , axis = -1 )
+  return K.mean( 6371.0087714 * d , axis = -1 )
+
+def geodistance_tensorflow( p1 , p2 ):
+    aa0 = p1[:,0] * 0.01745329251994329576924
+    aa1 = p1[:,1] * 0.01745329251994329576924
+    bb0 = tf.atan2(p2[:,2], K.sqrt(p2[:,0] ** 2 + p2[:,1] ** 2)) * 180.0 / 3.141592653589793238462643383279502884197169399375105820974944592307816406286
+    bb1 = tf.atan2(p2[:,1], p2[:,0]) * 180.0 / 3.141592653589793238462643383279502884197169399375105820974944592307816406286
+    bb0 = bb0 * 0.01745329251994329576924
+    bb1 = bb1 * 0.01745329251994329576924
+    sin_lat1 = K.sin( aa0 )
+    cos_lat1 = K.cos( aa0 )
+    sin_lat2 = K.sin( bb0 )
+    cos_lat2 = K.cos( bb0 )
+    delta_lng = bb1 - aa1
+    cos_delta_lng = K.cos(delta_lng)
+    sin_delta_lng = K.sin(delta_lng)
+    d = tf.atan2(K.sqrt((cos_lat2 * sin_delta_lng) ** 2 + (cos_lat1 * sin_lat2 - sin_lat1 * cos_lat2 * cos_delta_lng) ** 2), sin_lat1 * sin_lat2 + cos_lat1 * cos_lat2 * cos_delta_lng )
+    return K.mean( 6371.0087714 * d , axis = -1 )
 
 def normalize_values (x, minv, maxv):
     return float(((float(x) - float(minv))/(float(maxv)-float(minv))))
@@ -128,32 +143,15 @@ def get_results(distance_file_name, results_file, predictions, test_instances_sz
 
       elif codes_flag == 0:
         # codes_flag = 0: results based on coordinates predictions only
-        (p1, p2) = predictions[0][pos]
+        (xs, ys, zs) = predictions[0][pos]
         # conversion of the cartesian geographic coordinates (x,y,z) into the latitude and longitude coordinates
-        '''
+
         lat = float(math.atan2(zs, math.sqrt(xs * xs + ys * ys)) * 180.0 / math.pi)
         lon = float(math.atan2(ys, xs) * 180.0 / math.pi)
-        '''
-
-        lat = convertvalues(p1, _BOUNDING_BOX[0], _BOUNDING_BOX[1])
-        lon = convertvalues(p2, _BOUNDING_BOX[2], _BOUNDING_BOX[3])
 
       elif codes_flag == -2:
         # codes_flag = -2: results based on mean of both coordinates prediction and centroide of region prediction
         # equal to the 2 previous cases, but we use the mean of both to get the results
-        coordinates = healpix2latlon(y_classes[pos], resolution)
-        lat1 = coordinates[0]
-        lon1 = coordinates[1]
-
-        (p1, p2) = predictions[0][pos]
-
-        lat2 = convertvalues(p1, _BOUNDING_BOX[0], _BOUNDING_BOX[1])
-        lon2 = convertvalues(p2, _BOUNDING_BOX[2], _BOUNDING_BOX[3])
-
-        lat = (lat1 + lat2) / 2
-        lon = (lon1 + lon2) / 2
-
-        '''
         (xs1, ys1, zs1) = predictions[0][pos]
 
         coordinates = healpix2latlon(y_classes[pos], resolution)
@@ -168,7 +166,7 @@ def get_results(distance_file_name, results_file, predictions, test_instances_sz
         zs = (zs1 + zs2) / 2
         lat = float(math.atan2(zs, math.sqrt(xs * xs + ys * ys)) * 180.0 / math.pi)
         lon = float(math.atan2(ys, xs) * 180.0 / math.pi)
-        '''
+
       # calculate distance between predicted coordinates and the real ones
       dist = geodistance((Y1_test[pos][0], Y1_test[pos][1]), (lat, lon))
       # to measuse accuracy bellow 161km
