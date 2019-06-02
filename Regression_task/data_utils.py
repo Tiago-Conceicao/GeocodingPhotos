@@ -9,7 +9,7 @@ from scipy import stats
 _BOUNDING_BOX = [37.639830, 37.929824, -123.173825, -122.281780] #sf
 #_BOUNDING_BOX = [40.477399,  40.917577, -74.259090, -73.700272] #ny
 
-def geodistance_theano( p1 , p2 ):
+def geodistance_theano( p1 , p2 ):  #p1: lat, lon; p2: lat, lon
   a0 = convertvalues(p1[:,0], _BOUNDING_BOX[0], _BOUNDING_BOX[1])
   a1 = convertvalues(p1[:,1], _BOUNDING_BOX[2],  _BOUNDING_BOX[3])
   b0 = convertvalues(p2[:,0], _BOUNDING_BOX[0] , _BOUNDING_BOX[1])
@@ -30,7 +30,7 @@ def geodistance_theano( p1 , p2 ):
   d = tf.atan2(K.sqrt((cos_lat2 * sin_delta_lng) ** 2 + (cos_lat1 * sin_lat2 - sin_lat1 * cos_lat2 * cos_delta_lng) ** 2), sin_lat1 * sin_lat2 + cos_lat1 * cos_lat2 * cos_delta_lng )
   return K.mean( 6371.0087714 * d , axis = -1 )
 
-def geodistance_tensorflow( p1 , p2 ):
+def geodistance_tensorflow( p1 , p2 ): #p1: lat, lon; p2: x, y, z
     aa0 = p1[:,0] * 0.01745329251994329576924
     aa1 = p1[:,1] * 0.01745329251994329576924
     bb0 = tf.atan2(p2[:,2], K.sqrt(p2[:,0] ** 2 + p2[:,1] ** 2)) * 180.0 / 3.141592653589793238462643383279502884197169399375105820974944592307816406286
@@ -86,19 +86,6 @@ def median_confidence_interval( data ):
     mmh = np.percentile(me, 97.5)
     return med , mph , mmh
 
-def get_results(predictions, Y_test):
-  distances = []
-  lat = 0
-  lon = 0
-  print('predictions:')
-  for i in range(len(predictions)):
-    lat = convertvalues(predictions[i][0], _BOUNDING_BOX[0], _BOUNDING_BOX[1])
-    lon = convertvalues(predictions[i][1], _BOUNDING_BOX[2], _BOUNDING_BOX[3])
-    distances.append(geodistance(Y_test[i], (lat, lon)))
-
-  print("Mean distance : %s km\n" % np.mean(distances))
-  print("Median distance : %s km\n" % np.median(distances))
-
 def latlon2healpix(lat, lon, res):
   lat = float(lat)
   lon = float(lon)
@@ -133,7 +120,7 @@ def get_results(distance_file_name, results_file, predictions, test_instances_sz
     y_classes = encoder.inverse_transform(y_classes)
 
     acc_161 = 0
-    for pos in range(len(predictions[0])):
+    for pos in range(test_instances_sz):
       if codes_flag == 1:
         # codes_flag = 1: results based on centroide coordinates of the region predicted
         # convert the healpix code back to latitude and longitude coordinates, given the resolution
