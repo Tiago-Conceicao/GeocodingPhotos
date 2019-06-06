@@ -7,8 +7,9 @@ from keras import models, layers
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from skimage.color import rgb2lab
-from data_utils import geodistance_tensorflow, normalize_values, get_results, latlon2healpix, healpix2latlon
+from data_utils import geodistance_tensorflow, normalize_values, get_results, latlon2healpix, healpix2latlon, square, cube
 from clr import CyclicLR
+from efficientnet import EfficientNetB3, EfficientNetB0
 import tensorflow as tf
 import numpy as np
 import random as rn
@@ -30,12 +31,14 @@ _BOUNDING_BOX = [37.639830, 37.929824, -123.173825, -122.281780] #sf
 #_BOUNDING_BOX = [40.477399,  40.917577, -74.259090, -73.700272] #ny
 _MODEL_FINAL_NAME = '/home/tconceicao/weights/mobilenet_sf_regression.h5'
 _MODEL_WEIGHTS_FINAL_NAME = '/home/tconceicao/weights/mobilenet_sf_regression_weights.h5'
-_PATH = '/home/tconceicao/resized_images_sf2/'
+#_PATH = '/home/tconceicao/resized_images_sf2/'
 #_PATH = '/home/tconceicao/resized_images_ny2/'
+_PATH = '/home/tconceicao/old_sf/'
+#_PATH = '/home/tconceicao/old_ny/'
 _TRAIN_TEST_SPLIT_SEED = 2
-num_per_epoch = 100
-batch_size = 20 #36
-sample = 10000
+num_per_epoch = 200
+batch_size = 17 #36
+sample = 1000
 
 
 def get_images(path):
@@ -45,8 +48,9 @@ def get_images(path):
     for line in images_list:
         images.append(line)
         entry = os.path.splitext(line)[0].split(",") #filename without the extension
-        coordinates.append((entry[2].rstrip(), entry[1]))
-    return images[:sample], coordinates[:sample]
+        coordinates.append((entry[1].rstrip(), entry[2]))
+    #return images[:sample], coordinates[:sample]
+    return images, coordinates
 
 def generate_arrays_from_file(X, Y1, Y2, matrix, batchsize):
     while 1:
@@ -99,7 +103,7 @@ print("Train instances:", train_instances_sz)
 print("Test instances:", test_instances_sz)
 
 
-resolution = math.pow(2,11)
+resolution = math.pow(2, 11)
 encoder = LabelEncoder()
 region_codes = []
 for coordinates in (Y_train + Y_test):
@@ -133,16 +137,18 @@ codes_matrix = [codes_matrix]
 
 ######### MODEL ################
 image_size=224
-denseNet = densenet.DenseNet121(weights='imagenet', include_top=False, input_shape=(image_size,image_size,3), pooling = 'avg')
+#denseNet = densenet.DenseNet121(weights='imagenet', include_top=False, input_shape=(image_size,image_size,3), pooling = 'avg')
+efficientNet = EfficientNetB3(input_shape=(image_size,image_size,3), classes=1000, include_top=True, weights='imagenet')
 
 #build model
 input_matrix = layers.Input(shape=(Y2_train.shape[1], 3), dtype='float32', name="matrix")
 
 inp = layers.Input(shape=(image_size, image_size, 3))
-x = denseNet(inp)
+x = efficientNet(inp)
 auxiliary_output = layers.Dense(Y2_train.shape[1], activation='softmax', name = "auxiliary_output")(x)
+cube_prob = layers.Lambda(cube)(auxiliary_output)
 
-main_output = layers.dot([auxiliary_output, input_matrix], axes=1, name='main_output')
+main_output = layers.dot([cube_prob, input_matrix], axes=1, name='main_output')
 
 model = models.Model(inputs=[inp, input_matrix], outputs=[main_output, auxiliary_output])
 ################################
@@ -154,7 +160,7 @@ checkpoint = ModelCheckpoint(_MODEL_WEIGHTS_FINAL_NAME, monitor='loss', verbose=
 opt = keras.optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=True)
 
 model.compile(loss={"main_output": geodistance_tensorflow, "auxiliary_output": 'categorical_crossentropy'}, optimizer = opt,
-              loss_weights=[1.0, 40.0], metrics={"main_output": geodistance_tensorflow, "auxiliary_output": 'categorical_accuracy'})
+              loss_weights=[0.5, 0.5], metrics={"main_output": geodistance_tensorflow, "auxiliary_output": 'categorical_accuracy'})
 
 step = 8*len(X_train)//batch_size
 clr = CyclicLR(base_lr=0.0001, max_lr=0.00001, step_size=step, mode='triangular2')
