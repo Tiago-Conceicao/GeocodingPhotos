@@ -38,10 +38,7 @@ _PATH = '/home/tconceicao/old_sf/'
 
 _MODEL_FINAL_NAME = '/home/tconceicao/weights/mobilenet_sf_regression.h5'
 _MODEL_WEIGHTS_FINAL_NAME = '/home/tconceicao/weights/mobilenet_sf_regression_weights.h5'
-#_PATH = '/home/tconceicao/resized_images_sf2/'
-#_PATH = '/home/tconceicao/resized_images_ny2/'
-_PATH = '/home/tconceicao/old_sf/'
-#_PATH = '/home/tconceicao/old_ny/'
+
 _TRAIN_TEST_SPLIT_SEED = 2
 num_per_epoch = 200
 batch_size = 16 #36
