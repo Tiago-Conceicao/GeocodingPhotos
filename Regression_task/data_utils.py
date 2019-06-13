@@ -119,7 +119,10 @@ def get_results(distance_file_name, results_file, predictions, test_instances_sz
     # we nedd to inverse_tranform to get the real code class
     y_classes = encoder.inverse_transform(y_classes)
 
-    acc_161 = 0
+    acc_5 = 0
+    acc_1 = 0
+    acc_500m = 0
+    acc_100m = 0
     for pos in range(test_instances_sz):
       if codes_flag == 1:
         # codes_flag = 1: results based on centroide coordinates of the region predicted
@@ -157,8 +160,14 @@ def get_results(distance_file_name, results_file, predictions, test_instances_sz
       # calculate distance between predicted coordinates and the real ones
       dist = geodistance((Y1_test[pos][0], Y1_test[pos][1]), (lat, lon))
       # to measuse accuracy bellow 161km
-      if dist <= 161:
-        acc_161 += 1
+      if dist <= 5:
+        acc_5 += 1
+      if dist <= 1:
+        acc_1 += 1
+      if dist <= 0.5:
+        acc_500m += 1
+      if dist <= 0.1:
+        acc_100m += 1
       # regist the predicted results for test split
       #        f.write(test_names[pos].replace(" ","_") + "\t" + str(lat) + "\t" + str(lon) + "\t" + str(Y1_test[pos][0]) + "\t" + str(Y1_test[pos][1]) + "\t" + str(dist) + "\n")
       distances.append(dist)
@@ -181,10 +190,14 @@ def get_results(distance_file_name, results_file, predictions, test_instances_sz
     print("Region accuracy calculated from coordinates (resolution=64): %s" % float(correct2 / float(len(distances))))
     print("Region accuracy calculated from coordinates (resolution=256): %s" % float(correct3 / float(len(distances))))
     print("Region accuracy calculated from coordinates (resolution=1024): %s" % float(correct4 / float(len(distances))))
-    print("Accurary under or equal to 161km:", acc_161 / test_instances_sz)
+    print("Accurary under or equal to 5 km:", acc_5 / test_instances_sz)
+    print("Accurary under or equal to 1 km:", acc_1 / test_instances_sz)
+    print("Accurary under or equal to 500 m:", acc_500m / test_instances_sz)
+    print("Accurary under or equal to 100 m:", acc_100m / test_instances_sz)
     print()
     f.close()
 
+    '''
     out_results = open(results_file, "a")
     out_results.write("Mean distance : %s km\n" % np.mean(distances))
     out_results.write("Median distance : %s km\n" % np.median(distances))
@@ -200,3 +213,12 @@ def get_results(distance_file_name, results_file, predictions, test_instances_sz
       "Region accuracy calculated from coordinates (resolution=1024): %s\n" % float(correct4 / float(len(distances))))
     out_results.write("Accurary under or equal to 161km: " + str(acc_161 / test_instances_sz) + "\n\n")
     out_results.close()
+    '''
+
+def square(vector):
+    new_vector = (vector**2.0)/(K.sum(vector**2.0))
+    return new_vector
+
+def cube(vector):
+    new_vector = (vector**3.0)/(K.sum(vector**3.0))
+    return new_vector

@@ -9,7 +9,7 @@ from sklearn.preprocessing import LabelEncoder
 from skimage.color import rgb2lab
 from data_utils import geodistance_tensorflow, normalize_values, get_results, latlon2healpix, healpix2latlon, square, cube
 from clr import CyclicLR
-from efficientnet import EfficientNetB3, EfficientNetB0
+from efficientnet import EfficientNetB3
 import tensorflow as tf
 import numpy as np
 import random as rn
@@ -28,7 +28,14 @@ session_conf.gpu_options.allow_growth = True
 tf.keras.backend.set_session(tf.Session(graph=tf.get_default_graph(),config=session_conf))
 
 _BOUNDING_BOX = [37.639830, 37.929824, -123.173825, -122.281780] #sf
+#_PATH = '/home/tconceicao/resized_images_sf2/'
+_PATH = '/home/tconceicao/old_sf/'
+
 #_BOUNDING_BOX = [40.477399,  40.917577, -74.259090, -73.700272] #ny
+#_PATH = '/home/tconceicao/resized_images_ny2/'
+#_PATH = '/home/tconceicao/old_ny/'
+
+
 _MODEL_FINAL_NAME = '/home/tconceicao/weights/mobilenet_sf_regression.h5'
 _MODEL_WEIGHTS_FINAL_NAME = '/home/tconceicao/weights/mobilenet_sf_regression_weights.h5'
 #_PATH = '/home/tconceicao/resized_images_sf2/'
@@ -37,8 +44,8 @@ _PATH = '/home/tconceicao/old_sf/'
 #_PATH = '/home/tconceicao/old_ny/'
 _TRAIN_TEST_SPLIT_SEED = 2
 num_per_epoch = 200
-batch_size = 17 #36
-sample = 1000
+batch_size = 16 #36
+sample = 20000
 
 
 def get_images(path):
@@ -48,7 +55,7 @@ def get_images(path):
     for line in images_list:
         images.append(line)
         entry = os.path.splitext(line)[0].split(",") #filename without the extension
-        coordinates.append((entry[1].rstrip(), entry[2]))
+        coordinates.append((entry[2].rstrip(), entry[1]))
     #return images[:sample], coordinates[:sample]
     return images, coordinates
 
@@ -183,6 +190,9 @@ predictions = model.predict_generator(generate_arrays_from_file(X_test, Y1_test,
 distance_file = "/home/tconceicao/results/regre-0.5-30.5-SF-clr-0.0001-0.00001"
 results_file = "/home/tconceicao/results/regre-0.5-30.5-SF-clr-0.0001-0.00001"
 print("Computing accuracy...\n")
+print("Coordinates results:")
 get_results(distance_file+"-coordinates.results", results_file, predictions, test_instances_sz, encoder, resolution, Y1_test, codes_flag=0)
+print("Centroids results:")
 get_results(distance_file+"-codes.results", results_file, predictions, test_instances_sz, encoder, resolution, Y1_test, codes_flag=1)
+print("Mean results:")
 get_results(distance_file+"-mean.results", results_file, predictions, test_instances_sz, encoder, resolution, Y1_test, codes_flag=-2)
